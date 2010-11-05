@@ -2,7 +2,6 @@ $KCODE = 'UTF-8' unless RUBY_VERSION > '1.8.7'
 
 require 'rubygems'
 
-# require 'active_support'
 begin
   require 'yajl'
   JSON = Yajl::Parser

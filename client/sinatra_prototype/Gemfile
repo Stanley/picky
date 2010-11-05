@@ -4,7 +4,6 @@ source :gemcutter
 #
 gem 'picky-client'
 gem 'i18n'
-gem 'activesupport', :require => 'active_support/core_ext'
 gem 'sinatra'
 gem 'haml'
 gem 'yajl-ruby', :platforms => :ruby
