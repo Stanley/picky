@@ -1,1 +1,0 @@
-require File.expand_path '../../ext/ruby19/performant', __FILE__
