@@ -121,20 +121,15 @@ module Picky
         #
         def smart_copy filename, target
           # p "Trying to copy #{filename} -> #{target}"
-          FileUtils.copy_file filename, target
-          created target
-        rescue Errno::EISDIR
-          # p "EISDIR #{filename} -> #{target}"
-          FileUtils.rm target
-          FileUtils.mkdir_p target unless Dir.exists?(target)
+          if File.directory?(filename)
+            FileUtils.mkdir_p File.dirname(target)
+          else
+            FileUtils.copy_file filename, target 
+          end
           created target
         rescue Errno::EEXIST
           # p "EEXIST #{filename} -> #{target}"
           exists target
-        rescue Errno::ENOTDIR
-          # p "ENOTDIR #{filename} -> #{target}"
-          FileUtils.mkdir_p File.dirname(target) rescue nil
-          retry
         rescue Errno::ENOENT => e
           # p "ENOENT #{filename} -> #{target}"
           if File.exists? filename
