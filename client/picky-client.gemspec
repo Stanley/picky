@@ -14,6 +14,4 @@ Gem::Specification.new do |s|
   s.test_files = Dir["spec/**/*_spec.rb"]
   s.has_rdoc = false
   s.extra_rdoc_files = ['README.rdoc']
-  
-  s.add_dependency('yajl-ruby', '>= 0.7.8')
 end

@@ -3,7 +3,17 @@ $KCODE = 'UTF-8' unless RUBY_VERSION > '1.8.7'
 require 'rubygems'
 
 # require 'active_support'
-require 'yajl'
+begin
+  require 'yajl'
+  JSON = Yajl::Parser
+rescue LoadError
+  begin
+    require 'json'
+  rescue LoadError
+    puts " Yajl gem missing!\nYou need to:\n1. Add the following line to Gemfile:\ngem 'yajl'\n1b. Or if you do not use MRI:\ngem 'json'\n2. Then, run:\nbundle update\n"
+    exit 1
+  end
+end
 
 dir = File.dirname __FILE__
 require File.expand_path('picky-client/engine', dir)

@@ -7,6 +7,8 @@ gem 'i18n'
 gem 'activesupport', :require => 'active_support/core_ext'
 gem 'sinatra'
 gem 'haml'
+gem 'yajl-ruby', :platforms => :ruby
+gem 'json-jruby', :platforms => :jruby
 
 group :development do
   gem 'sinatra-reloader'

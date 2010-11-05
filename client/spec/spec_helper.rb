@@ -6,8 +6,6 @@ require File.expand_path('../../lib/picky-client/generator', __FILE__)
 require 'spec'
 require 'benchmark'
 
-require 'yajl'
-
 def in_the(object, &block)
   object.instance_eval &block
 end

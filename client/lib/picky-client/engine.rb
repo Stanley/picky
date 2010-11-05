@@ -70,9 +70,11 @@ module Picky
     class Full < Base
       default_configuration :host => 'localhost', :port => 8080, :path => '/searches/full'
       
-      @@parser_options = { :symbolize_keys => true }
-      def send_search params = {}                                                                                                                                 
-        Yajl::Parser.parse super(params), @@parser_options
+      def send_search params = {}
+        JSON.parse(super(params)).inject({}) do |options, (key, value)|
+          options[key.to_sym] = value
+          options
+        end
       end
     end
 
