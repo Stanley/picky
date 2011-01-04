@@ -35,6 +35,25 @@ describe Routing do
       "rack.input"=>'' }
   end
   
+  context 'empty?' do
+    context 'no routes' do
+      before(:each) do
+        @routing.reset_routes
+      end
+      it 'returns the right answer' do
+        @routing.empty?.should == true
+      end
+    end
+    context 'with routes' do
+      before(:each) do
+        @routing.route %r{something} => :some_query
+      end
+      it 'returns the right answer' do
+        @routing.empty?.should == false
+      end
+    end
+  end
+  
   context 'real routes' do
     before(:each) do
       @routing.reset_routes
@@ -158,6 +177,9 @@ describe Routing do
         @routing.should_receive(:route_one).once.with %r{regexp2}, :query2, :some => :option
         
         @routing.route %r{regexp1} => :query1, %r{regexp2} => :query2, :some => :option
+      end
+      it 'does not accept nil queries' do
+        lambda { @routing.route %r{some/regexp} => nil }.should raise_error(Routing::TargetQueryNilError, /Routing for \/some\\\/regexp\/ was defined with a nil query object/)
       end
     end
     

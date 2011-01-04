@@ -3,22 +3,30 @@ h1. Picky
 h2. The Ruby small-text search engine.
 
 Take a dive with Picky in "the Getting Started section":http://floere.github.com/picky.
+Ask questions in the "Picky Mailing List":http://groups.google.com/group/picky-ruby.
+See the "changelog":http://github.com/floere/picky/blob/master/history.textile.
 Find everything else in "the Picky Wiki":http://github.com/floere/picky/wiki.
+
+h1. System Requirements
+
+* OSX / Linux
+* "Ruby 1.9":http://www.ruby-lang.org/en/downloads/
+* "Bundler Gem":http://gembundler.com/
+
+I recommend "RVM":http://rvm.beginrescueend.com/ for installing and managing Ruby versions.
 
 h1. Installation
 
-Note that Picky only runs on Ruby 1.9. I recommend "RVM":http://rvm.beginrescueend.com/ for installing and managing Ruby versions.
-
-<pre><code>gem install picky picky-client</code></pre>
+<pre><code>gem install picky picky-client picky-generators</code></pre>
 
 h2. The server
 
 The server generates a library example, which you can run right away.
 
 <pre><code># Generates a directory "app_name"
-# with a new Picky project.
+# with a new Picky unicorn server project.
 
-picky project app_name</code></pre>
+picky generate unicorn_server app_name</code></pre>
 
 <pre><code>cd app_name
 bundle install</code></pre>
@@ -44,9 +52,9 @@ h2. The client
 The client generates an example app for the "library" example backend, using Sinatra.
 
 <pre><code># Generates a directory "app_name"
-# with a new Picky Client Webapp project.
+# with a new Picky Client Sinatra Webapp project.
 
-picky-client sinatra app_name</code></pre>
+picky generate sinatra_client app_name</code></pre>
 
 <pre><code>cd app_name
 bundle install</code></pre>

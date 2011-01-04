@@ -6,6 +6,3 @@
 # Signal.trap 'USR2' do
 #   Loader.reload
 # end
-# Signal.trap 'INT' do
-#   exit!
-# end

@@ -1,4 +1,4 @@
-module Results
+module Results # :nodoc:all
 
   # This is the internal results object. Usually, to_marshal, or to_json
   # is called on it to get a string for the answer.
@@ -12,9 +12,16 @@ module Results
 
     # Takes instances of Query::Allocations as param.
     #
-    def initialize offset = 0, allocations = nil
+    def initialize offset = 0, allocations = Query::Allocations.new
       @offset = offset
-      @allocations = allocations || Query::Allocations.new
+      @allocations = allocations # || Query::Allocations.new
+    end
+    # Create new results and calculate the ids.
+    #
+    def self.from offset, allocations
+      results = new offset, allocations
+      results.prepare!
+      results
     end
 
     #

@@ -2,7 +2,7 @@ require 'rack/mount'
 
 # 
 #
-class Routing
+class Routing # :nodoc:all
   
   @@defaults = {
     query_key:    'query'.freeze,
@@ -53,8 +53,17 @@ class Routing
     [mappings, route_options]
   end
   def route_one url, query, route_options = {}
+    raise TargetQueryNilError.new(url) unless query
     query.tokenizer = @defaults[:tokenizer] if @defaults[:tokenizer]
     routes.add_route generate_app(query, route_options), default_options(url, route_options)
+  end
+  class TargetQueryNilError < StandardError
+    def initialize url
+      @url = url
+    end
+    def to_s
+      "Routing for #{@url.inspect} was defined with a nil query object."
+    end
   end
   #
   #
@@ -114,7 +123,7 @@ class Routing
       
       results = query.search_with_text *extracted(params)
       
-      PickyLog.log results.to_log(params[query_key]) # TODO Save the original query in the results object.
+      PickyLog.log results.to_log(params[query_key])
       
       respond_with results.to_response, content_type
     end
@@ -140,6 +149,12 @@ class Routing
   
   def normalized url
     String === url ? %r{#{url}} : url
+  end
+  
+  # Returns true if there are no routes defined.
+  #
+  def empty?
+    routes.length.zero?
   end
   
   # TODO Beautify.

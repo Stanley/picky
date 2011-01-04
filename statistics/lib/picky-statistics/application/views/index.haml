@@ -1,0 +1,52 @@
+!!!
+%html{ :lang => 'en' }
+  %head
+    %link{ :href => 'stylesheets/statistics.css', :media => 'screen', :rel => 'stylesheet', :type => 'text/css' }/
+    %script{ :src => 'javascripts/jquery-1.4.4.min.js', :type => 'text/javascript' }
+    %script{ :src => 'javascripts/jquery.sparkline-1.6.min.js', :type => 'text/javascript' }
+    %script{ :src => 'javascripts/statistics.js', :type => 'text/javascript' }
+    
+  %body
+    %h1 Picky Statistics (Experimental)
+    .actions
+      %button{ :href => '#', :onclick => 'javascript:updateStatistics();' } Update now
+      |
+      %button{ :href => '#', :onclick => 'javascript:stopUpdatingStatistics();' } Stop Updating
+      %button{ :href => '#', :onclick => 'javascript:updateStatisticsPeriodically(5);' } Update every 5 seconds
+      %button{ :href => '#', :onclick => 'javascript:updateStatisticsPeriodically(30);' } Update every 30 seconds
+      %button{ :href => '#', :onclick => 'javascript:updateStatisticsPeriodically(600);' } Update every 5 minutes
+    .overview.push
+      %h2 Overview
+      #full_live_graph.stats
+        %h2 Totals
+        .inlinesparkline
+        = haml :legend, {}, :color => :black, :type => :full, :text => 'full requests'
+        = haml :legend, {}, :color => :grey, :type => :live, :text => 'live requests'
+        = haml :legend, {}, :color => :white, :type => :total, :text => 'total'
+    .full.push
+      %h2 Full Results
+      #results_graph.stats
+        %h3 Counts
+        .inlinesparkline
+        = haml :legend, {}, :color => :green, :type => :result1, :text => 'x 1 result'
+        = haml :legend, {}, :color => :darkgreen, :type => :result2, :text => 'x 2 results'
+        = haml :legend, {}, :color => :browngreen, :type => :result3, :text => 'x 3 results'
+        = haml :legend, {}, :color => :brownorange, :type => :result4plus, :text => 'x 4 or more results'
+        = haml :legend, {}, :color => :orange, :type => :result100plus, :text => 'x 100 or more results'
+        = haml :legend, {}, :color => :brownred, :type => :result1000plus, :text => 'x 1000 or more results'
+        = haml :legend, {}, :color => :red, :type => :result0, :text => 'x no results'
+      #speed_graph.stats
+        %h3 Performance
+        .inlinesparkline
+        = haml :legend, {}, :color => :green, :type => :quick, :text => 'quick (< 0.001s)'
+        = haml :legend, {}, :color => :darkgreen, :type => :normal, :text => 'normal'
+        = haml :legend, {}, :color => :orange, :type => :slow, :text => 'slow (> 0.1s)'
+        = haml :legend, {}, :color => :red, :type => :very_slow, :text => 'very slow (> 1s)'
+      #offset_graph.stats
+        %h3 Offsets
+        .inlinesparkline
+        = haml :legend, {}, :color => :black, :type => :with_offset, :text => 'with offset'
+        = haml :legend, {}, :color => :grey, :type => :without_offset, :text => 'without offset'
+  :javascript
+    updateStatistics();
+    

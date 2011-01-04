@@ -39,11 +39,7 @@ describe Tokenizers::Index do
 
   describe "reject!" do
     it "should reject tokens if blank" do
-      t1 = stub(:token, :to_s => '')
-      t2 = stub(:token, :to_s => 'not blank')
-      t3 = stub(:token, :to_s => '')
-      
-      @tokenizer.reject([t1, t2, t3]).should == [t2]
+      @tokenizer.reject(['', 'not blank', '']).should == ['not blank']
     end
   end
   
@@ -68,6 +64,7 @@ describe Tokenizers::Index do
       #
       it_should_tokenize_token "splitting on \\s", [:splitting, :on, :"\\s"]
       it_should_tokenize_token 'und', [:und]
+      it_should_tokenize_token '7',   [:'7']
     end
   end
 

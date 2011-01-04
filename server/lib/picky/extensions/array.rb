@@ -1,6 +1,6 @@
 # The Array class we all know and love.
 #
-class Array
+class Array # :nodoc:all
 
   # Cluster-uniqs equal neighborly elements.
   #
@@ -26,14 +26,6 @@ class Array
       end
     end
     result
-  end
-
-  # Accesses a random element of this array.
-  #
-  # TODO Remove?
-  #
-  def random
-    self[Kernel.rand(self.length)]
   end
 
   # Sort the array using distance from levenshtein.

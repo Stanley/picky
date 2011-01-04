@@ -2,59 +2,54 @@
 #
 class BookSearch < Application
     
-    default_indexing removes_characters:                 /[',\(\)#:!@;\?]/,
-                     contracts_expressions:              [/mr\.\s*|mister\s*/i, 'mr '],
+    default_indexing removes_characters:                 /[^äöüa-zA-Z0-9\s\/\-\"\&\.]/,
                      stopwords:                          /\b(und|and|the|or|on|of|in|is|to|from|as|at|an)\b/,
-                     splits_text_on:                     /[\s\/\-\"\&\.]/,
+                     splits_text_on:                     /[\s\/\-\"\&]/,
                      removes_characters_after_splitting: /[\.]/,
                      normalizes_words:                   [[/\$(\w+)/i, '\1 dollars']],
+                     reject_token_if:                    lambda { |token| token.blank? || token == :amistad },
                      
-                     substitutes_characters_with:        CharacterSubstitution::European.new
+                     substitutes_characters_with:        CharacterSubstituters::WestEuropean.new
     
-    default_querying removes_characters:                 /[\(\)\']/,
-                     contracts_expressions:              [/mr\.\s*|mister\s*/i, 'mr '],
+    default_querying removes_characters:                 /[^ïôåñëäöüa-zA-Z0-9\s\/\-\,\&\.\"\~\*\:]/,
                      stopwords:                          /\b(und|and|the|or|on|of|in|is|to|from|as|at|an)\b/,
                      splits_text_on:                     /[\s\/\-\,\&]+/,
-                     removes_characters_after_splitting: /[\.]/,
+                     removes_characters_after_splitting: //,
                      
                      maximum_tokens:                     5,
-                     substitutes_characters_with:        CharacterSubstitution::European.new
-                     
-                     
-    similar_title = category :title,  :qualifiers => [:t, :title, :titre],
-                                      :partial => Partial::Substring.new(:from => 1),
-                                      :similarity =>  Similarity::Phonetic.new(2)
-    author        = category :author, :qualifiers => [:a, :author, :auteur],
-                                      :partial => Partial::Substring.new(:from => -2)
-    year          = category :year,   :qualifiers => [:y, :year, :annee]
-    isbn          = category :isbn,   :qualifiers => [:i, :isbn]
+                     substitutes_characters_with:        CharacterSubstituters::WestEuropean.new
     
-    main_index = index :main,
-                       Sources::DB.new('SELECT id, title, author, year FROM books', :file => 'app/db.yml'),
-                       similar_title,
-                       author,
-                       year
+    main_index = index :main, Sources::DB.new('SELECT id, title, author, year FROM books', file: 'app/db.yml')
+    main_index.define_category :title,
+                               qualifiers: [:t, :title, :titre],
+                               partial:    Partial::Substring.new(:from => 1),
+                               similarity: Similarity::Phonetic.new(2)
+    main_index.define_category :author,
+                               partial:    Partial::Substring.new(:from => -2)
+    main_index.define_category :year,
+                               qualifiers: [:y, :year, :annee]
     
-    isbn_index = index :isbn,
-                       Sources::DB.new("SELECT id, isbn FROM books", :file => 'app/db.yml'),
-                       field(:isbn, :qualifiers => [:i, :isbn])
+    isbn_index = index :isbn, Sources::DB.new("SELECT id, isbn FROM books", :file => 'app/db.yml')
+    isbn_index.define_category :isbn, :qualifiers => [:i, :isbn]
     
-    # geo_index  = index :geo,
-    #                    Sources::CSV.new(:location, :x, :y, :file => 'data/locations.csv'),
-    #                    category(:location),
-    #                    location(:x, radius: 10.k),
-    #                    location(:y, radius: 10.k),
-    #                    location(:z, radius: 10.k)
+    geo_index  = index :geo, Sources::CSV.new(:location, :north, :east, file: 'data/ch.csv', col_sep: ',')
+    geo_index.define_category :location
+    geo_index.define_map_location(:north1, 1, precision: 3, from: :north)
+             .define_map_location(:east1,  1, precision: 3, from: :east)
     
-    csv_test_index = index :csv_test,
-                           Sources::CSV.new(:title,:author,:isbn,:year,:publisher,:subjects, :file => 'data/books.csv'),
-                           similar_title,
-                           author,
-                           isbn,
-                           year,
-                           category(:publisher, :qualifiers => [:p, :publisher]),
-                           category(:subjects, :qualifiers => [:s, :subject])
-                           
+    csv_test_index = index(:csv_test, Sources::CSV.new(:title,:author,:isbn,:year,:publisher,:subjects, file: 'data/books.csv'))
+                       .define_category(:title,
+                                 qualifiers: [:t, :title, :titre],
+                                 partial:    Partial::Substring.new(from: 1),
+                                 similarity: Similarity::Phonetic.new(2))
+                       .define_category(:author,
+                                 qualifiers: [:a, :author, :auteur],
+                                 partial:    Partial::Substring.new(from: -2))
+                       .define_category(:year,
+                                 qualifiers: [:y, :year, :annee],
+                                 partial:    Partial::None.new)
+                       .define_category(:publisher, qualifiers: [:p, :publisher])
+                       .define_category(:subjects, qualifiers: [:s, :subject])
     
     options = {
       :weights => {
@@ -70,16 +65,25 @@ class BookSearch < Application
     full_csv  = Query::Full.new csv_test_index, options
     live_csv  = Query::Live.new csv_test_index, options
     
-    full_isbn = Query::Full.new isbn_index, options
-    live_isbn = Query::Live.new isbn_index, options
+    full_isbn = Query::Full.new isbn_index
+    live_isbn = Query::Live.new isbn_index
     
-    route %r{^/books/full} => full_main,
-          %r{^/books/live} => live_main,
-          %r{^/csv/full}   => full_csv,
-          %r{^/csv/live}   => live_csv,
-          %r{^/isbn/full}  => full_isbn,
-          %r{^/all/full}   => Query::Full.new(main_index, csv_test_index, isbn_index, options),
-          %r{^/all/live}   => Query::Live.new(main_index, csv_test_index, isbn_index, options)
+    full_geo  = Query::Full.new geo_index
+    live_geo  = Query::Live.new geo_index
+    
+    route %r{\A/books/full\Z} => full_main,
+          %r{\A/books/live\Z} => live_main,
+          
+          %r{\A/csv/full\Z}   => full_csv,
+          %r{\A/csv/live\Z}   => live_csv,
+          
+          %r{\A/isbn/full\Z}  => full_isbn,
+          
+          %r{\A/geo/full\Z}   => full_geo,
+          %r{\A/geo/live\Z}   => live_geo,
+          
+          %r{\A/all/full\Z}   => Query::Full.new(main_index, csv_test_index, isbn_index, geo_index, options),
+          %r{\A/all/live\Z}   => Query::Live.new(main_index, csv_test_index, isbn_index, geo_index, options)
     
     root 200
     

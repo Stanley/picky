@@ -30,7 +30,6 @@ module Tokenizers
     def preprocess text
       remove_illegals text             # Remove illegal characters
       remove_non_single_stopwords text # remove stop words
-      contract text                    # contract st sankt etc
       text
     end
     
@@ -58,7 +57,7 @@ module Tokenizers
     # TODO Perhaps move to Normalizer?
     #
     def normalize text
-      text = substitute_characters text # Substitute special characters TODO Move to subclass
+      text = substitute_characters text # Substitute special characters
       text.downcase!                    # Downcase all text
       normalize_with_patterns text      # normalize
       text.to_sym                       # symbolize

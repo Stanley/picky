@@ -1,72 +1,49 @@
 module Index
   
-  # TODO Think about using 3 instances of this in the bundle.
-  #
   class Files
     
-    attr_reader :bundle_name, :category_name, :type_name
-    attr_reader :prepared, :index, :similarity, :weights
+    attr_reader :bundle_name
+    attr_reader :prepared, :index, :weights, :similarity, :configuration
     
-    def initialize bundle_name, category_name, type_name
-      @bundle_name   = bundle_name
-      @category_name = category_name
-      @type_name     = type_name
+    delegate :index_name, :category_name, :to => :@config
+    
+    def initialize bundle_name, config
+      @bundle_name = bundle_name
+      @config      = config
       
       # Note: We marshal the similarity, as the
       #       Yajl json lib cannot load symbolized
       #       values, just keys.
       #
-      @prepared   = File::Text.new    "#{cache_directory}/prepared_#{category_name}_index"
-      @index      = File::JSON.new    cache_path(:index)
-      @similarity = File::Marshal.new cache_path(:similarity)
-      @weights    = File::JSON.new    cache_path(:weights)
+      @prepared      = File::Text.new    config.prepared_index_path
+      @index         = File::JSON.new    config.index_path(bundle_name, :index)
+      @weights       = File::JSON.new    config.index_path(bundle_name, :weights)
+      @similarity    = File::Marshal.new config.index_path(bundle_name, :similarity)
+      @configuration = File::JSON.new    config.index_path(bundle_name, :configuration)
     end
-    
-    # Paths.
-    #
-    
-    # Cache path, for File-s.
-    #
-    def cache_path name
-      ::File.join cache_directory, "#{bundle_name}_#{category_name}_#{name}"
-    end
-    
-    # Point to category.
-    #
-    def search_index_root
-      ::File.join PICKY_ROOT, 'index'
-    end
-    
-    # Create directory and parent directories.
-    #
-    def create_directory
-      FileUtils.mkdir_p cache_directory
-    end
-    # TODO Move to config. Duplicate Code in field.rb.
-    #
-    def cache_directory
-      "#{search_index_root}/#{PICKY_ENVIRONMENT}/#{type_name}"
-    end
-    def retrieve &block
-      prepared.retrieve &block
-    end
-    
-    # Single index/similarity/weights files delegation.
-    #
     
     # Delegators.
     #
+    
+    # Retrieving data.
+    #
+    def retrieve &block
+      prepared.retrieve &block
+    end
     
     # Dumping.
     #
     def dump_index index_hash
       index.dump index_hash
     end
+    def dump_weights weights_hash
+      weights.dump weights_hash
+    end
     def dump_similarity similarity_hash
       similarity.dump similarity_hash
     end
-    def dump_weights weights_hash
-      weights.dump weights_hash
+    def dump_configuration configuration_hash
+      configuration.dump configuration_hash
     end
     
     # Loading.
@@ -79,6 +56,9 @@ module Index
     end
     def load_weights
       weights.load
+    end
+    def load_configuration
+      configuration.load
     end
     
     # Cache ok?
@@ -109,16 +89,18 @@ module Index
     #
     def backup
       index.backup
-      similarity.backup
       weights.backup
+      similarity.backup
+      configuration.backup
     end
     
     # Restores the indexes from the "backup" directory.
     #
     def restore
       index.restore
-      similarity.restore
       weights.restore
+      similarity.restore
+      configuration.restore
     end
     
     
@@ -126,8 +108,9 @@ module Index
     #
     def delete
       index.delete
-      similarity.delete
       weights.delete
+      similarity.delete
+      configuration.delete
     end
     
   end

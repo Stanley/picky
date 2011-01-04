@@ -1,28 +1,63 @@
+# = Data Sources
+#
+# Currently, Picky offers the following Sources:
+# * CSV (comma – or other – separated file)
+# * Couch (CouchDB, key-value store)
+# * DB (Databases, foremost MySQL)
+# * Delicious (http://del.icio.us, online bookmarking service)
+# See also:
+# http://github.com/floere/picky/wiki/Sources-Configuration
+# 
+# Don't worry if your source isn't here. Adding your own is easy:
+# http://github.com/floere/picky/wiki/Contributing-sources
+#
 module Sources
   
   # Sources are where your data comes from.
-  # Harvest is the most important method as it is used always to get data.
+  #
+  # A source has 1 mandatory and 2 optional methods:
+  # * connect_backend (_optional_): called once for each type/category pair.
+  # * harvest: Used by the indexer to gather data. Yields an indexed_id (string or integer) and a string value.
+  # * take_snapshot (_optional_): called once for each type.
+  #
+  # This base class "implements" all these methods, but they don't do anything.
+  # Subclass this class <tt>class MySource < Base</tt> and override the methods in your source to do something.
   #
   class Base
     
-    # Note: Methods listed for illustrative purposes.
+    # Connect to the backend.
     #
-    
-    # Yield the data (id, text for id) for the given type and field.
+    # Called once per index/category combination before harvesting.
     #
-    def harvest type, field
-      # yields nothing
-    end
-    
-    # Connects to the backend.
+    # Examples:
+    # * The DB backend connects the DB adapter.
+    # * We open a connection to a key value store.
+    # * We open an file with data.
     #
     def connect_backend
       
     end
     
-    # Take a snapshot of your data, if it is fast changing.
+    # Called by the indexer when gathering data.
     #
-    def take_snapshot type
+    # Yields the data (id, text for id) for the given type and category.
+    #
+    # When implementing or overriding your own,
+    # be sure to <tt>yield(id, text_for_id)</tt> (or <tt>block.call(id, text_for_id)</tt>)
+    # for the given type symbol and category symbol.
+    #
+    def harvest index, category # :yields: id, text_for_id
+      # This concrete implementation yields "nothing", override in subclasses.
+    end
+    
+    # Used to take a snapshot of your data if it is fast changing.
+    #
+    # Called once for each type before harvesting.
+    #
+    # Example:
+    # * In a DB source, a table based on the source's select statement is created.
+    #
+    def take_snapshot index
       
     end
     

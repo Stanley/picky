@@ -1,11 +1,12 @@
-module Tokenizers
+module Tokenizers # :nodoc:all
   
   # Defines tokenizing processes used both in indexing and querying.
   #
   class Base
     
-    # TODO use frozen EMPTY_STRING for ''
+    # TODO Move EMPTY_STRING top level.
     #
+    EMPTY_STRING = ''.freeze
     
     # Stopwords.
     #
@@ -13,23 +14,13 @@ module Tokenizers
       @remove_stopwords_regexp = regexp
     end
     def remove_stopwords text
-      text.gsub! @remove_stopwords_regexp, '' if @remove_stopwords_regexp
+      text.gsub! @remove_stopwords_regexp, EMPTY_STRING if @remove_stopwords_regexp
       text
     end
     @@non_single_stopword_regexp = /^\b[\w:]+?\b[\.\*\~]?\s?$/
     def remove_non_single_stopwords text
       return text if text.match @@non_single_stopword_regexp
       remove_stopwords text
-    end
-    
-    # Contraction.
-    #
-    def contracts_expressions what, to_what
-      @contract_what    = what
-      @contract_to_what = to_what
-    end
-    def contract text
-      text.gsub! @contract_what, @contract_to_what if @contract_what
     end
     
     # Illegals.
@@ -40,7 +31,7 @@ module Tokenizers
       @removes_characters_regexp = regexp
     end
     def remove_illegals text
-      text.gsub! @removes_characters_regexp, '' if @removes_characters_regexp
+      text.gsub! @removes_characters_regexp, EMPTY_STRING if @removes_characters_regexp
       text
     end
     
@@ -76,19 +67,30 @@ module Tokenizers
       @removes_characters_after_splitting_regexp = regexp
     end
     def remove_after_normalizing_illegals text
-      text.gsub! @removes_characters_after_splitting_regexp, '' if @removes_characters_after_splitting_regexp
+      text.gsub! @removes_characters_after_splitting_regexp, EMPTY_STRING if @removes_characters_after_splitting_regexp
     end
     
     # Substitute Characters with this substituter.
     #
     # Default is European Character substitution.
     #
-    def substitutes_characters_with substituter = CharacterSubstitution::European.new
+    def substitutes_characters_with substituter = CharacterSubstituters::WestEuropean.new
       # TODO Raise if it doesn't quack substitute?
       @substituter = substituter
     end
     def substitute_characters text
       substituter?? substituter.substitute(text) : text 
+    end
+    
+    # Reject tokens after tokenizing based on the given criteria.
+    #
+    # Note: Currently only for indexing. TODO Redesign and write for both!
+    #
+    def reject_token_if &condition
+      @reject_condition = condition
+    end
+    def reject tokens
+      tokens.reject! &@reject_condition
     end
     
     
@@ -120,6 +122,7 @@ module Tokenizers
       # Defaults.
       #
       splits_text_on options[:splits_text_on] || /\s/
+      reject_token_if &(options[:reject_token_if] || :blank?)
     end
     
     # Hooks.
@@ -134,15 +137,10 @@ module Tokenizers
     # Postprocessing.
     #
     def process tokens
-      reject tokens    # Reject any tokens that don't meet criteria
+      reject tokens # Reject any tokens that don't meet criteria
       tokens
     end
     
-    # Rejects blank tokens.
-    #
-    def reject tokens
-      tokens.reject! &:blank?
-    end
     # Converts words into real tokens.
     #
     def tokens_for words

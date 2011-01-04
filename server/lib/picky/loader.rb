@@ -1,6 +1,6 @@
 # Loads the search engine and itself.
 #
-module Loader
+module Loader # :nodoc:all
   
   # Reloads the whole app.
   # First itself, then the app.
@@ -100,13 +100,15 @@ module Loader
     
     # Requiring Helpers
     #
-    load_relative 'helpers/gc'
-    load_relative 'helpers/cache'
     load_relative 'helpers/measuring'
     
-    # Character Substitution
+    # Character Substituters
     #
-    load_relative 'character_substitution/european'
+    load_relative 'character_substituters/west_european'
+    
+    # Calculations.
+    #
+    load_relative 'calculations/location'
     
     # Signal handling
     #
@@ -119,17 +121,19 @@ module Loader
     # Index generation strategies.
     #
     load_relative 'indexers/no_source_specified_error'
-    load_relative 'indexers/base'
-    load_relative 'indexers/field'
-    load_relative 'indexers/default'
+    load_relative 'indexers/serial'
     #
     # load_relative 'indexers/solr'
-
+    
+    # Cacher.
+    #
+    load_relative 'cacher/strategy'
+    
     # Partial index generation strategies.
     #
     load_relative 'cacher/partial/strategy'
     load_relative 'cacher/partial/none'
-    load_relative 'cacher/partial/subtoken'
+    load_relative 'cacher/partial/substring'
     load_relative 'cacher/partial/default'
 
     # Weight index generation strategies.
@@ -164,13 +168,33 @@ module Loader
     load_relative 'index/file/json'
     load_relative 'index/files'
     
-    # Index types.
+    # Indexing and Indexed things.
     #
     load_relative 'index/bundle'
-    load_relative 'index/category'
-    load_relative 'index/type'
     
-    load_relative 'index/wrappers/exact_first'
+    load_relative 'indexing/bundle'
+    load_relative 'indexing/category'
+    load_relative 'indexing/categories'
+    load_relative 'indexing/index'
+    load_relative 'indexing/indexes'
+    
+    load_relative 'indexed/bundle'
+    load_relative 'indexed/category'
+    load_relative 'indexed/categories'
+    load_relative 'indexed/index'
+    load_relative 'indexed/indexes'
+    
+    load_relative 'indexes_api'
+    load_relative 'alias_instances'
+    load_relative 'index_api'
+    
+    load_relative 'indexed/wrappers/exact_first'
+    
+    # Bundle Wrapper
+    #
+    load_relative 'indexed/wrappers/bundle/wrapper'
+    load_relative 'indexed/wrappers/bundle/calculation'
+    load_relative 'indexed/wrappers/bundle/location'
     
     # Tokens.
     #
@@ -193,7 +217,6 @@ module Loader
     
     load_relative 'query/qualifiers'
     load_relative 'query/weigher'
-    load_relative 'query/combinator'
     
     load_relative 'query/weights'
     
@@ -219,19 +242,12 @@ module Loader
     load_relative 'sources/delicious'
     load_relative 'sources/couch'
     
-    # Indexes.
-    #
-    load_relative 'indexes'
+    load_relative 'sources/wrappers/base'
+    load_relative 'sources/wrappers/location'
     
     # Configuration.
     #
-    load_relative 'configuration/field'
-    load_relative 'configuration/type'
-    load_relative 'configuration/indexes'
-    
-    # ... in Application.
-    #
-    load_relative 'configuration/queries'
+    load_relative 'configuration/index'
     
     # Application and routing.
     #
@@ -242,10 +258,6 @@ module Loader
     #
     # load_relative 'solr/schema_generator'
     load_relative 'cores'
-    
-    # Load generation.
-    #
-    load_relative 'generator'
   end
 
 end
