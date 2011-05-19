@@ -110,5 +110,24 @@ describe Sources::Couch do
         end
       end
     end
+
+    context "views" do
+
+      it "should get _all_docs" do
+        RestClient::Request.should_receive(:execute).with({
+          :method=>:get,
+          :url=>"http://localhost:5984/picky/_all_docs?include_docs=true",
+          :headers=>{}}).and_return({rows:[]}.to_json)
+          Sources::Couch.new(:a, :b, :c, url: 'http://localhost:5984/picky').get_data do; end
+      end
+
+      it "should access any given view" do
+        RestClient::Request.should_receive(:execute).with({
+          :method=>:get,
+          :url=>"http://localhost:5984/picky/_design/Foo/_view/Bar?include_docs=true",
+          :headers=>{}}).and_return({rows:[]}.to_json)
+        Sources::Couch.new(:a, :b, :c, url: 'http://localhost:5984/picky', view: '_design/Foo/_view/Bar').get_data do; end
+      end
+    end
   end
 end

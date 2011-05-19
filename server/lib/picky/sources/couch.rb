@@ -27,6 +27,7 @@ module Sources
 
       Hash === options && options[:url] || raise_no_db_given(category_names)
 
+      @view = options.delete(:view) || '_all_docs'
       @db = RestClient::Resource.new options.delete(:url), options
 
       key_format   = options.delete :key_format
@@ -59,7 +60,7 @@ module Sources
     end
 
     def get_data &block # :nodoc:
-      resp = @db['_all_docs?include_docs=true'].get
+      resp = @db[@view +'?include_docs=true'].get
       JSON.parse(resp)['rows'].
         map{|row| row['doc']}.
         each &block
