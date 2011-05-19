@@ -1,33 +1,123 @@
 # coding: utf-8
 require 'spec_helper'
 
-describe Query::Token do
+describe Internals::Query::Token do
   
   before(:all) do
-    Query::Qualifiers.instance << Query::Qualifier.new(:specific, [:sp, :spec])
-    Query::Qualifiers.instance.prepare
+    Internals::Query::Qualifiers.instance << Internals::Query::Qualifier.new(:specific, [:sp, :spec])
+    Internals::Query::Qualifiers.instance.prepare
+  end
+  
+  describe '==' do
+    it 'is equal if the originals are equal' do
+      described_class.processed('similar~').should == described_class.processed('similar~')
+    end
+    it 'is not equal if the originals are not equal' do
+      described_class.processed('similar~').should_not == described_class.processed('similar')
+    end
+  end
+  
+  describe 'next_similar_token' do
+    before(:each) do
+      @bundle   = stub :bundle, :similar => [:array, :of, :similar]
+      @category = stub :category, :bundle_for => @bundle
+      
+      @token = described_class.processed 'similar~'
+    end
+    it 'returns the right next tokens' do
+      next_token = @token.next_similar_token @category
+      next_token.text.should == :array
+      next_token = next_token.next_similar_token @category
+      next_token.text.should == :of
+      next_token = next_token.next_similar_token @category
+      next_token.text.should == :similar
+      next_token = next_token.next_similar_token @category
+      next_token.should == nil
+    end
+  end
+  
+  describe 'next_similar' do
+    before(:each) do
+      @bundle = stub :bundle
+    end
+    describe 'original' do
+      context 'with stub' do
+        before(:each) do
+          @bundle.stub! :similar => [:array, :of, :similar]
+
+          @token = described_class.processed 'similar~'
+        end
+        it 'should have a certain original text' do
+          @token.next_similar @bundle
+          
+          @token.original.should == :array
+        end
+      end
+    end
+    context 'similar' do
+      context 'with stub' do
+        before(:each) do
+          @bundle.stub! :similar => [:array, :of, :similar]
+
+          @token = described_class.processed 'similar~'
+        end
+        it 'generates all similar' do
+          @token.next_similar(@bundle).should == :array
+          @token.next_similar(@bundle).should == :of
+          @token.next_similar(@bundle).should == :similar
+          @token.next_similar(@bundle).should == nil
+        end
+        it 'should have a certain text' do
+          @token.next_similar @bundle
+          @token.next_similar @bundle
+          @token.next_similar @bundle
+          @token.next_similar @bundle
+          
+          @token.text.should == :similar
+        end
+      end
+    end
+    context 'non-similar' do
+      context 'with stub' do
+        before(:each) do
+          @bundle.stub! :similar => [:array, :of, :similar]
+
+          @token = described_class.processed 'nonsimilar'
+        end
+        it 'generates all similar' do
+          @token.next_similar(@bundle).should == nil
+        end
+        # TODO
+        #
+        # it 'should have a certain text' do
+        #   @token.next_similar @bundle
+        #   
+        #   @token.text.should == :nonsimilar
+        # end
+      end
+    end
   end
   
   describe "generate_similarity_for" do
     before(:each) do
       @bundle = stub :bundle
       
-      @token = Query::Token.processed 'flarb~'
+      @token = described_class.processed 'flarb~'
     end
     context "with similar" do
       before(:each) do
         @bundle.stub! :similar => [:array, :of, :similar]
       end
-      it "returns an enumerator" do
-        @token.generate_similarity_for(@bundle).to_a.size.should == 3
+      it "returns an array of the right size" do
+        @token.generate_similarity_for(@bundle).size.should == 3
       end
     end
     context "without similar" do
       before(:each) do
-        @bundle.stub! :similar => nil
+        @bundle.stub! :similar => []
       end
-      it "returns an enumerator with 0 entries" do
-        @token.generate_similarity_for(@bundle).to_a.size.should == 0
+      it "returns an array of the right size" do
+        @token.generate_similarity_for(@bundle).size.should == 0
       end
     end
   end
@@ -35,7 +125,7 @@ describe Query::Token do
   describe 'to_solr' do
     def self.it_should_solr text, expected_result
       it "should solrify into #{expected_result} from #{text}" do
-        Query::Token.processed(text).to_solr.should == expected_result
+        described_class.processed(text).to_solr.should == expected_result
       end
     end
     it_should_solr 's',            's'
@@ -63,7 +153,7 @@ describe Query::Token do
   describe 'qualify' do
     def self.it_should_qualify text, expected_result
       it "should extract the qualifier #{expected_result} from #{text}" do
-        Query::Token.new(text).qualify.should == expected_result
+        described_class.new(text).qualify.should == expected_result
       end
     end
     it_should_qualify 'spec:qualifier',    :specific
@@ -76,27 +166,36 @@ describe Query::Token do
   end
 
   describe 'processed' do
+    it 'should return a new token' do
+      described_class.processed('some text').should be_kind_of(described_class)
+    end
+    it 'generates a token' do
+      described_class.processed('some text').class.should == described_class
+    end
+  end
+  
+  describe 'process' do
+    let(:token) { described_class.new 'any_text' }
+    it 'returns itself' do
+      token.process.should == token
+    end
     it 'should have an order' do
-      token = stub :token
-      Query::Token.should_receive(:new).once.and_return token
-
       token.should_receive(:qualify).once.ordered
       token.should_receive(:extract_original).once.ordered
+      token.should_receive(:downcase).once.ordered
       token.should_receive(:partialize).once.ordered
       token.should_receive(:similarize).once.ordered
       token.should_receive(:remove_illegals).once.ordered
+      token.should_receive(:symbolize).once.ordered
 
-      Query::Token.processed :any_text
-    end
-    it 'should return a new token' do
-      Query::Token.processed('some text').should be_kind_of(Query::Token)
+      token.process
     end
   end
 
   describe 'partial?' do
     context 'similar, partial' do
       before(:each) do
-        @token = Query::Token.processed 'similar~'
+        @token = described_class.processed 'similar~'
         @token.partial = true
       end
       it 'should be false' do
@@ -105,7 +204,7 @@ describe Query::Token do
     end
     context 'similar, not partial' do
       before(:each) do
-        @token = Query::Token.processed 'similar~'
+        @token = described_class.processed 'similar~'
       end
       it 'should be false' do
         @token.partial?.should == false
@@ -113,7 +212,7 @@ describe Query::Token do
     end
     context 'not similar, partial' do
       before(:each) do
-        @token = Query::Token.processed 'not similar'
+        @token = described_class.processed 'not similar'
         @token.partial = true
       end
       it 'should be true' do
@@ -122,7 +221,7 @@ describe Query::Token do
     end
     context 'not similar, not partial' do
       before(:each) do
-        @token = Query::Token.processed 'not similar'
+        @token = described_class.processed 'not similar'
       end
       it 'should be nil' do
         @token.partial?.should == nil
@@ -132,12 +231,12 @@ describe Query::Token do
 
   describe 'similar' do
     it 'should not change the original with the text' do
-      token = Query::Token.processed "bla~"
+      token = described_class.processed "bla~"
       token.text.should_not == token.original
     end
     def self.it_should_have_similarity text, expected_similarity_value
       it "should have #{ "no" unless expected_similarity_value } similarity for '#{text}'" do
-        Query::Token.processed(text).similar?.should == expected_similarity_value
+        described_class.processed(text).similar?.should == expected_similarity_value
       end
     end
     it_should_have_similarity 'name:',      nil
@@ -157,7 +256,7 @@ describe Query::Token do
 
   describe 'special cases' do
     it 'should be blank on ""' do
-      token = Query::Token.processed '""'
+      token = described_class.processed '""'
 
       token.should be_blank
     end
@@ -166,7 +265,7 @@ describe Query::Token do
   describe 'split' do
     def self.it_should_split text, expected_qualifier
       it "should extract #{expected_qualifier} from #{text}" do
-        Query::Token.new('any').send(:split, text).should == expected_qualifier
+        described_class.new('any').send(:split, text).should == expected_qualifier
       end
     end
     it_should_split '""',         [nil, '""']
@@ -180,7 +279,7 @@ describe Query::Token do
 
   describe "original" do
     it "should keep the original text even when processed" do
-      token = Query::Token.processed "I'm the original token text."
+      token = described_class.processed "I'm the original token text."
 
       token.original.should == "I'm the original token text."
     end
@@ -188,12 +287,12 @@ describe Query::Token do
 
   describe "blank?" do
     it "should be blank if the token text itself is blank" do
-      token = Query::Token.processed ''
+      token = described_class.processed ''
 
       token.blank?.should be_true
     end
     it "should be non-blank if the token text itself is non-blank" do
-      token = Query::Token.processed 'not empty'
+      token = described_class.processed 'not empty'
 
       token.blank?.should be_false
     end
@@ -202,14 +301,14 @@ describe Query::Token do
   describe "to_s" do
     describe "with qualifier" do
       it "should display qualifier and text combined with a ':'" do
-        token = Query::Token.processed('sp:qualifier')
+        token = described_class.processed('sp:qualifier')
 
         token.to_s.should == 'specific:qualifier'
       end
     end
     describe "without qualifier" do
       it "should display just the text" do
-        token = Query::Token.processed('text')
+        token = described_class.processed('text')
 
         token.to_s.should == 'text'
       end
@@ -219,7 +318,7 @@ describe Query::Token do
   describe 'user_defined_category_name' do
     context 'with qualifier' do
       before(:each) do
-        @token = Query::Token.processed('sp:qualifier')
+        @token = described_class.processed('sp:qualifier')
       end
       it 'should return the qualifier' do
         @token.user_defined_category_name.should == :specific
@@ -227,7 +326,7 @@ describe Query::Token do
     end
     context 'without qualifier' do
       before(:each) do
-        @token = Query::Token.processed('noqualifier')
+        @token = described_class.processed('noqualifier')
       end
       it 'should return nil' do
         @token.user_defined_category_name.should == nil
@@ -238,7 +337,7 @@ describe Query::Token do
   describe "split" do
     def self.it_should_split text, expected_result
       it "should split #{expected_result} from #{text}" do
-        Query::Token.new('any').send(:split, text).should == expected_result
+        described_class.new('any').send(:split, text).should == expected_result
       end
     end
     it_should_split ':',                 [nil,        '']
@@ -254,7 +353,7 @@ describe Query::Token do
   describe 'partial=' do
     context 'partial nil' do
       before(:each) do
-        @token = Query::Token.new 'text'
+        @token = described_class.new 'text'
       end
       it 'should set partial' do
         @token.partial = true
@@ -269,7 +368,14 @@ describe Query::Token do
     end
     context 'partial not nil' do
       before(:each) do
-        @token = Query::Token.processed 'text*'
+        @token = described_class.processed 'text*'
+      end
+      it 'should not set partial' do
+        @token.instance_variable_set :@partial, false
+        
+        @token.partial = true
+
+        @token.instance_variable_get(:@partial).should be_false
       end
       it 'should not set partial' do
         @token.partial = false
@@ -281,17 +387,17 @@ describe Query::Token do
 
   describe 'partialize!' do
     it 'should not partialize a token if the text ends with "' do
-      token = Query::Token.processed 'text"'
+      token = described_class.processed 'text"'
 
       token.instance_variable_get(:@partial).should be_false
     end
     it 'should partialize a token if the text ends with *' do
-      token = Query::Token.processed 'text*'
+      token = described_class.processed 'text*'
 
       token.instance_variable_get(:@partial).should be_true
     end
     it 'should not partialize a token if the text ends with ~' do
-      token = Query::Token.processed 'text~'
+      token = described_class.processed 'text~'
 
       token.instance_variable_get(:@partial).should be_nil
     end
@@ -299,22 +405,22 @@ describe Query::Token do
 
   describe "processed" do
     it 'should remove *' do
-      token = Query::Token.processed 'text*'
+      token = described_class.processed 'text*'
 
-      token.text.should == 'text'
+      token.text.should == :text
     end
     it 'should remove ~' do
-      token = Query::Token.processed 'text~'
+      token = described_class.processed 'text~'
 
-      token.text.should == 'text'
+      token.text.should == :text
     end
     it 'should remove "' do
-      token = Query::Token.processed 'text"'
+      token = described_class.processed 'text"'
 
-      token.text.should == 'text'
+      token.text.should == :text
     end
     it "should pass on a processed text" do
-      Query::Token.processed('text').text.should == 'text'
+      described_class.processed('text').text.should == :text
     end
   end
 

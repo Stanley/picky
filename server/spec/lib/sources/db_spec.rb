@@ -8,40 +8,51 @@ describe Sources::DB do
     @connection = stub :connection
     @adapter    = stub :adapter, :connection => @connection
     
-    @select_statement = stub :statement
+    @select_statement = stub :statement, :inspect => '"some statement"'
     
-    @source = Sources::DB.new @select_statement, :option => :some_options
+    @source = described_class.new @select_statement, :option => :some_options
     
     @source.stub! :database => @adapter
     @source.stub! :connect_backend
   end
   
+  describe 'to_s' do
+    it 'does something' do
+      @source.to_s.should == 'Sources::DB("some statement", {:option=>:some_options})'
+    end
+  end
+  
   describe "get_data" do
     before(:each) do
-      @type     = stub :type,     :name => :some_type
-      @category = stub :category, :from => :some_category
+      @index    = stub :index, :name => :some_index_name
+      @category = stub :category, :from => :some_category, :index => @index
     end
-    context 'no data' do
-      it "delegates to the connection" do
-
-        @connection.should_receive(:execute).
-                    once.
-                    with('SELECT indexed_id, some_category FROM some_type_type_index st WHERE st.id > some_offset LIMIT 25000').
-                    and_return []
-
-        @source.get_data @type, @category, :some_offset
+    context 'mysql' do
+      before(:each) do
+        @connection.stub! :adapter_name => 'mysql'
       end
-    end
-    context 'with data' do
-      it 'yields to the caller' do
-        @connection.should_receive(:execute).
-                    any_number_of_times.
-                    with('SELECT indexed_id, some_category FROM some_type_type_index st WHERE st.id > some_offset LIMIT 25000').
-                    and_return [[1, 'text']]
+      context 'no data' do
+        it "delegates to the connection" do
 
-        @source.get_data @type, @category, :some_offset do |id, text|
-          id.should == 1
-          text.should == 'text'
+          @connection.should_receive(:execute).
+                      once.
+                      with('SELECT id, some_category FROM picky_some_index_name_index st WHERE st.__picky_id > some_offset LIMIT 25000').
+                      and_return []
+
+          @source.get_data @category, :some_offset
+        end
+      end
+      context 'with data' do
+        it 'yields to the caller' do
+          @connection.should_receive(:execute).
+                      any_number_of_times.
+                      with('SELECT id, some_category FROM picky_some_index_name_index st WHERE st.__picky_id > some_offset LIMIT 25000').
+                      and_return [[1, 'text']]
+
+          @source.get_data @category, :some_offset do |id, text|
+            id.should == 1
+            text.should == 'text'
+          end
         end
       end
     end
@@ -81,7 +92,7 @@ describe Sources::DB do
     end
     it "should get the id count" do
       result = stub(:result, :to_i => 12_345)
-      @connection.should_receive(:select_value).once.with("SELECT COUNT(id) FROM some_type_name_type_index")
+      @connection.should_receive(:select_value).once.with("SELECT COUNT(__picky_id) FROM picky_some_type_name_index")
       
       @source.count @type
     end
@@ -89,8 +100,8 @@ describe Sources::DB do
   
   describe 'harvest' do
     before(:each) do
-      @type     = stub :type,     :name => :some_type
-      @category = stub :category, :name => :some_category
+      @index    = stub :index,    :name => :some_index
+      @category = stub :category, :name => :some_category, :index => @index
 
       @source.should_receive(:get_data).any_number_of_times.and_return [[:some_id, 'some_text']].cycle
       @source.stub! :count => 17
@@ -98,7 +109,7 @@ describe Sources::DB do
     it 'calls connect_backend' do
       @source.should_receive(:connect_backend).once.with()
       
-      @source.harvest @type, @category do |id, text|
+      @source.harvest @category do |id, text|
         p [id, text]
       end
     end
@@ -107,19 +118,18 @@ describe Sources::DB do
   describe "harvest_statement_with_offset" do
     before(:each) do
       @category = stub :category, :from => :some_category
-      @type     = stub :type,     :name => :some_type
     end
     it "should get a harvest statement and the chunksize to put the statement together" do
-      @source.should_receive(:harvest_statement).once.with(@type, @category).and_return 'some_example_statement'
-      @source.harvest_statement_with_offset(@type, @category, :some_offset)
+      @source.should_receive(:harvest_statement).once.with(@category).and_return 'some_example_statement'
+      @source.harvest_statement_with_offset(@category, :some_offset)
     end
     it "should add an AND if it already contains a WHERE statement" do
       @source.should_receive(:harvest_statement).and_return 'WHERE'
-      @source.harvest_statement_with_offset(@type, @category, :some_offset).should == "WHERE AND st.id > some_offset LIMIT 25000"
+      @source.harvest_statement_with_offset(@category, :some_offset).should == "WHERE AND st.__picky_id > some_offset LIMIT 25000"
     end
     it "should add a WHERE if it doesn't already contain one" do
       @source.should_receive(:harvest_statement).and_return 'some_statement'
-      @source.harvest_statement_with_offset(@type, @category, :some_offset).should == "some_statement WHERE st.id > some_offset LIMIT 25000"
+      @source.harvest_statement_with_offset(@category, :some_offset).should == "some_statement WHERE st.__picky_id > some_offset LIMIT 25000"
     end
   end
   

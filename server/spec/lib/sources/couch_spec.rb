@@ -2,28 +2,25 @@ require 'spec_helper'
 
 describe Sources::Couch do
   
-  describe 'UUIDKeys' do
-    before(:each) do
-      @keys = Sources::Couch::UUIDKeys.new
+  describe 'key_format' do
+    context 'default' do
+      let(:source) { Sources::Couch.new(:a, :b, url: 'bla') }
+      it 'is correct' do
+        source.key_format.should == :to_sym
+      end
     end
-    it 'converts uuids' do
-      @keys.to_i('550e8400-e29b-41d4-a716-446655440000').should == 113059749145936325402354257176981405696
-    end
-  end
-  describe 'HexKeys' do
-    before(:each) do
-      @keys = Sources::Couch::HexKeys.new
-    end
-    it 'converts uuids' do
-      @keys.to_i('7f').should == 127
+    context 'non-default' do
+      let(:source) { Sources::Couch.new(:a, :b, url: 'bla', key_format: 'some_key_method') }
+      it 'is correct' do
+        source.key_format.should == :some_key_method
+      end
     end
   end
-  describe 'IntegerKeys' do
-    before(:each) do
-      @keys = Sources::Couch::IntegerKeys.new
-    end
-    it 'converts uuids' do
-      @keys.to_i('123').should == '123'
+  
+  describe 'to_s' do
+    let(:source) { Sources::Couch.new(:a, :b, :url => 'bla') }
+    it 'is correct' do
+      source.to_s.should == 'Sources::Couch'
     end
   end
   
@@ -31,15 +28,15 @@ describe Sources::Couch do
     context 'uuid keys' do
       context "with database" do
         before(:each) do
-          @source = Sources::Couch.new :a, :b, :c, url: 'http://localhost:5984/picky', keys: Sources::Couch::UUIDKeys.new
+          @source = Sources::Couch.new :a, :b, :c, url: 'http://localhost:5984/picky'
           RestClient::Request.should_receive(:execute).any_number_of_times.and_return %{{"rows":[{"doc":{"_id":"550e8400-e29b-41d4-a716-446655440000","a":"a data","b":"b data","c":"c data"}}]}}
         end
 
         describe "harvest" do
           it "yields the right data" do
-            field = stub :b, :from => :b
-            @source.harvest :anything, field do |id, token|
-              id.should    eql(113059749145936325402354257176981405696) 
+            category = stub :b, :from => :b
+            @source.harvest category do |id, token|
+              id.should    eql('550e8400-e29b-41d4-a716-446655440000') 
               token.should eql('b data')
             end.should have(1).item
           end
@@ -57,14 +54,14 @@ describe Sources::Couch do
     context 'integer keys' do
       context "with database" do
         before(:each) do
-          @source = Sources::Couch.new :a, :b, :c, url: 'http://localhost:5984/picky', keys: Sources::Couch::IntegerKeys.new
+          @source = Sources::Couch.new :a, :b, :c, url: 'http://localhost:5984/picky'
           RestClient::Request.should_receive(:execute).any_number_of_times.and_return %{{"rows":[{"doc":{"_id":"123","a":"a data","b":"b data","c":"c data"}}]}}
         end
 
         describe "harvest" do
           it "yields the right data" do
-            field = stub :b, :from => :b
-            @source.harvest :anything, field do |id, token|
+            category = stub :b, :from => :b
+            @source.harvest category do |id, token|
               id.should    eql('123') 
               token.should eql('b data')
             end.should have(1).item
@@ -97,9 +94,9 @@ describe Sources::Couch do
 
       describe "harvest" do
         it "yields the right data" do
-          field = stub :b, :from => :b
-          @source.harvest :anything, field do |id, token|
-            id.should    eql(127) 
+          category = stub :b, :from => :b
+          @source.harvest category do |id, token|
+            id.should    eql('7f') 
             token.should eql('b data')
           end.should have(1).item
         end

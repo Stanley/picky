@@ -3,8 +3,8 @@
 require 'spec_helper'
 
 describe CharacterSubstituters do
-  before(:each) do
-    @substituter = CharacterSubstituters::WestEuropean.new
+  before(:all) do
+    @substituter = CharacterSubstituters::WestEuropean.new.tap { |s| s.substitute '' }
   end
 
   # A bit of metaprogramming to help with the myriads of its.
@@ -17,6 +17,26 @@ describe CharacterSubstituters do
   def self.it_should_not_substitute(special_character)
     it "should not substitute #{special_character}" do
       @substituter.substitute(special_character).should == special_character
+    end
+  end
+  
+  # Speed spec at the top since the order of the describes made the
+  # speed spec trip. And not on mushrooms either.
+  #
+  describe "speed" do
+    it "is fast" do
+      result = performance_of { @substituter.substitute('ä') }
+      result.should < 0.00009
+    end
+    it "is fast" do
+      result = performance_of { @substituter.substitute('abcdefghijklmnopqrstuvwxyz1234567890') }
+      result.should < 0.00015
+    end
+  end
+  
+  describe 'to_s' do
+    it 'outputs correctly' do
+      @substituter.to_s.should == 'CharacterSubstituters::WestEuropean'
     end
   end
 
@@ -44,8 +64,12 @@ describe CharacterSubstituters do
   end
 
   describe "acute" do
+    it_should_substitute 'á', 'a'
+    it_should_substitute 'Á', 'A'
     it_should_substitute 'é', 'e'
     it_should_substitute 'É', 'E'
+    it_should_substitute 'í', 'i'
+    it_should_substitute 'ó', 'o'
   end
 
   describe "grave" do
@@ -86,17 +110,6 @@ describe CharacterSubstituters do
   
   describe "diacritic" do
     it_should_substitute 'ñ', 'n'
-  end
-  
-  describe "speed" do
-    it "is fast" do
-      result = performance_of { @substituter.substitute('ä') }
-      result.should < 0.00009
-    end
-    it "is fast" do
-      result = performance_of { @substituter.substitute('abcdefghijklmnopqrstuvwxyz1234567890') }
-      result.should < 0.00015
-    end
   end
 
 end

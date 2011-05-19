@@ -22,9 +22,25 @@ puts "Redefined PICKY_ROOT to '#{PICKY_ROOT}' for the tests."
 PickyLog = Loggers::Search.new ::Logger.new(STDOUT)
 puts "Using STDOUT as test log."
 
-def performance_of &block
-  GC.disable
-  result = Benchmark.realtime &block
-  GC.enable
-  result
+begin
+  require File.expand_path '../performance_ratio', __FILE__
+rescue LoadError => e
+  # Default is for slower computers and
+  # collaborators who don't need to check
+  # performance so much.
+  #
+  module Picky; PerformanceRatio = 0.5 end
+end
+def performance_of
+  if block_given?
+    code = Proc.new
+    GC.disable
+    t0 = Time.now
+    code.call
+    t1 = Time.now
+    GC.enable
+    (t1 - t0) * Picky::PerformanceRatio
+  else
+    raise "#performance_of needs a block"
+  end
 end

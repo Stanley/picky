@@ -6,8 +6,7 @@ gem 'picky-client'
 gem 'i18n'
 gem 'sinatra'
 gem 'haml'
-gem 'yajl-ruby', :platforms => :ruby
-gem 'json-jruby', :platforms => :jruby
+gem 'unicorn'
 
 group :development do
   gem 'sinatra-reloader'

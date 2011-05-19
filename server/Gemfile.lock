@@ -4,12 +4,16 @@ GEM
     activerecord (2.3.8)
       activesupport (= 2.3.8)
     activesupport (2.3.8)
+    highline (1.6.1)
     mime-types (1.16)
+    picky-client (2.1.0)
+      yajl-ruby (>= 0.7.8)
     rack (1.2.1)
     rack-mount (0.6.13)
       rack (>= 1.0.0)
     rack_fast_escape (2009.06.24)
       url_escape
+    redis (2.1.1)
     rest-client (1.6.1)
       mime-types (>= 1.16)
     rspec (1.3.1)
@@ -28,9 +32,12 @@ PLATFORMS
 DEPENDENCIES
   activerecord (= 2.3.8)
   bundler (>= 0.9.26)
+  highline
+  picky-client
   rack (~> 1.2.1)
   rack-mount (~> 0.6.9)
   rack_fast_escape (= 2009.06.24)
+  redis
   rest-client
   rspec (~> 1.3.0)
   simplecov (>= 0.3.5)

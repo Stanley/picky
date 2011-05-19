@@ -5,7 +5,7 @@
 #
 require File.expand_path '../../lib/picky', __FILE__
 
-# Load your application. This requires the files in lib TODO
+# Load your application.
 #
 Loader.load_application
 
@@ -17,8 +17,8 @@ Indexes.load_from_cache
 #
 # See http://vimeo.com/12614970 for more info.
 #
-    Rack::Harakiri.after = 1000
-use Rack::Harakiri
+#     Rack::Harakiri.after = 1000
+# use Rack::Harakiri
 
 # Finalize and start the application and start accepting requests.
 #

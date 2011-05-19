@@ -1,56 +1,195 @@
 # encoding: utf-8
 #
 class BookSearch < Application
-    
-    default_indexing removes_characters:                 /[^äöüa-zA-Z0-9\s\/\-\"\&\.]/,
-                     stopwords:                          /\b(und|and|the|or|on|of|in|is|to|from|as|at|an)\b/,
-                     splits_text_on:                     /[\s\/\-\"\&]/,
-                     removes_characters_after_splitting: /[\.]/,
-                     normalizes_words:                   [[/\$(\w+)/i, '\1 dollars']],
-                     reject_token_if:                    lambda { |token| token.blank? || token == :amistad },
-                     
-                     substitutes_characters_with:        CharacterSubstituters::WestEuropean.new
-    
-    default_querying removes_characters:                 /[^ïôåñëäöüa-zA-Z0-9\s\/\-\,\&\.\"\~\*\:]/,
-                     stopwords:                          /\b(und|and|the|or|on|of|in|is|to|from|as|at|an)\b/,
-                     splits_text_on:                     /[\s\/\-\,\&]+/,
-                     removes_characters_after_splitting: //,
-                     
-                     maximum_tokens:                     5,
-                     substitutes_characters_with:        CharacterSubstituters::WestEuropean.new
-    
-    main_index = index :main, Sources::DB.new('SELECT id, title, author, year FROM books', file: 'app/db.yml')
-    main_index.define_category :title,
-                               qualifiers: [:t, :title, :titre],
-                               partial:    Partial::Substring.new(:from => 1),
-                               similarity: Similarity::Phonetic.new(2)
-    main_index.define_category :author,
-                               partial:    Partial::Substring.new(:from => -2)
-    main_index.define_category :year,
-                               qualifiers: [:y, :year, :annee]
-    
-    isbn_index = index :isbn, Sources::DB.new("SELECT id, isbn FROM books", :file => 'app/db.yml')
-    isbn_index.define_category :isbn, :qualifiers => [:i, :isbn]
-    
-    geo_index  = index :geo, Sources::CSV.new(:location, :north, :east, file: 'data/ch.csv', col_sep: ',')
-    geo_index.define_category :location
-    geo_index.define_map_location(:north1, 1, precision: 3, from: :north)
-             .define_map_location(:east1,  1, precision: 3, from: :east)
-    
-    csv_test_index = index(:csv_test, Sources::CSV.new(:title,:author,:isbn,:year,:publisher,:subjects, file: 'data/books.csv'))
-                       .define_category(:title,
-                                 qualifiers: [:t, :title, :titre],
-                                 partial:    Partial::Substring.new(from: 1),
-                                 similarity: Similarity::Phonetic.new(2))
-                       .define_category(:author,
-                                 qualifiers: [:a, :author, :auteur],
-                                 partial:    Partial::Substring.new(from: -2))
-                       .define_category(:year,
-                                 qualifiers: [:y, :year, :annee],
-                                 partial:    Partial::None.new)
-                       .define_category(:publisher, qualifiers: [:p, :publisher])
-                       .define_category(:subjects, qualifiers: [:s, :subject])
-    
+
+    indexing removes_characters:                 /[^äöüa-zA-Z0-9\s\/\-\_\:\"\&\.\|]/i,
+             stopwords:                          /\b(and|the|or|on|of|in|is|to|from|as|at|an)\b/i,
+             splits_text_on:                     /[\s\/\-\_\:\"\&\/]/,
+             removes_characters_after_splitting: /[\.]/,
+             normalizes_words:                   [[/\$(\w+)/i, '\1 dollars']],
+             rejects_token_if:                   lambda { |token| token.blank? || token == :amistad },
+             case_sensitive:                     false,
+
+             substitutes_characters_with:        CharacterSubstituters::WestEuropean.new
+
+    searching removes_characters:                 /[^ïôåñëäöüa-zA-Z0-9\s\/\-\_\,\&\.\"\~\*\:]/i,
+              stopwords:                          /\b(and|the|or|on|of|in|is|to|from|as|at|an)\b/i,
+              splits_text_on:                     /[\s\/\,\&\/]/,
+              removes_characters_after_splitting: /\|/,
+              # rejects_token_if:                   lambda { |token| token.blank? || token == :hell }, # Not yet.
+              case_sensitive:                     true,
+
+              maximum_tokens:                     5,
+              substitutes_characters_with:        CharacterSubstituters::WestEuropean.new
+
+    books_index = Index::Memory.new :books, result_identifier: 'boooookies' do
+      source   Sources::DB.new('SELECT id, title, author, year FROM books', file: 'app/db.yml')
+      category :id
+      category :title,
+               qualifiers: [:t, :title, :titre],
+               partial:    Partial::Substring.new(:from => 1),
+               similarity: Similarity::DoubleMetaphone.new(2)
+      category :author, partial: Partial::Substring.new(:from => -2)
+      category :year, qualifiers: [:y, :year, :annee]
+    end
+
+    class Book < ActiveRecord::Base; end
+    Book.establish_connection YAML.load(File.open('app/db.yml'))
+    book_each_index = Index::Memory.new :book_each do
+      key_format :to_s
+      source     Book.order('title ASC')
+      category   :id
+      category   :title,
+                 qualifiers: [:t, :title, :titre],
+                 partial:    Partial::Substring.new(:from => 1),
+                 similarity: Similarity::DoubleMetaphone.new(2)
+      category   :author, partial: Partial::Substring.new(:from => -2)
+      category   :year, qualifiers: [:y, :year, :annee]
+    end
+
+    isbn_index = Index::Memory.new :isbn do
+      source   Sources::DB.new("SELECT id, isbn FROM books", :file => 'app/db.yml')
+      category :isbn, :qualifiers => [:i, :isbn]
+    end
+
+    class EachRSSItemProxy
+
+      def each &block
+        require 'rss'
+        require 'open-uri'
+        rss_feed = "http://florianhanke.com/blog/atom.xml"
+        rss_content = ""
+        open rss_feed do |f|
+           rss_content = f.read
+        end
+        rss = RSS::Parser.parse rss_content, true
+        rss.items.each &block
+      rescue
+        # Don't call block, no data.
+      end
+
+    end
+
+    rss_index = Index::Memory.new :rss do
+      source     EachRSSItemProxy.new
+      key_format :to_s
+
+      category   :title
+      # etc...
+    end
+
+    # Breaking example to test the nice error message.
+    #
+    # breaking = Index::Memory.new :isbn, Sources::DB.new("SELECT id, isbn FROM books", :file => 'app/db.yml') do
+    #   category :isbn, :qualifiers => [:i, :isbn]
+    # end
+
+    # Fake ISBN class to demonstrate that #each indexing is working.
+    #
+    class ISBN
+      @@id = 1
+      attr_reader :id, :isbn
+      def initialize isbn
+        @id   = @@id += 1
+        @isbn = isbn
+      end
+    end
+    isbn_each_index = Index::Memory.new :isbn_each, source: [ISBN.new('ABC'), ISBN.new('DEF')] do
+      category :isbn, :qualifiers => [:i, :isbn], :key_format => :to_s
+    end
+
+    mgeo_index = Index::Memory.new :memory_geo do
+      source          Sources::CSV.new(:location, :north, :east, file: 'data/ch.csv', col_sep: ',')
+      category        :location
+      ranged_category :north1, 0.008, precision: 3, from: :north
+      ranged_category :east1,  0.008, precision: 3, from: :east
+    end
+
+    real_geo_index = Index::Memory.new :real_geo do
+      source         Sources::CSV.new(:location, :north, :east, file: 'data/ch.csv', col_sep: ',')
+      category       :location, partial: Partial::Substring.new(from: 1)
+      geo_categories :north, :east, 1, precision: 3
+    end
+
+    iphone_locations = Index::Memory.new :iphone do
+      source Sources::CSV.new(
+        :mcc,
+        :mnc,
+        :lac,
+        :ci,
+        :timestamp,
+        :latitude,
+        :longitude,
+        :horizontal_accuracy,
+        :altitude,
+        :vertical_accuracy,
+        :speed,
+        :course,
+        :confidence,
+        file: 'data/iphone_locations.csv'
+      )
+      ranged_category :timestamp, 86_400, precision: 5, qualifiers: [:ts, :timestamp]
+      geo_categories  :latitude, :longitude, 25, precision: 3
+    end
+
+    Index::Memory.new :underscore_regression do
+      source         Sources::CSV.new(:location, file: 'data/ch.csv')
+      category       :some_place, :from => :location
+    end
+
+    # rgeo_index = Index::Redis.new :redis_geo, Sources::CSV.new(:location, :north, :east, file: 'data/ch.csv', col_sep: ',')
+    # rgeo_index.define_category :location
+    # rgeo_index.define_map_location(:north1, 1, precision: 3, from: :north)
+    #           .define_map_location(:east1,  1, precision: 3, from: :east)
+
+    csv_test_index = Index::Memory.new(:csv_test, result_identifier: 'Books') do
+      source     Sources::CSV.new(:title,:author,:isbn,:year,:publisher,:subjects, file: 'data/books.csv')
+
+      category :title,
+               qualifiers: [:t, :title, :titre],
+               partial:    Partial::Substring.new(from: 1),
+               similarity: Similarity::DoubleMetaphone.new(2)
+      category :author,
+               qualifiers: [:a, :author, :auteur],
+               partial:    Partial::Substring.new(from: -2)
+      category :year,
+               qualifiers: [:y, :year, :annee],
+               partial:    Partial::None.new
+      category :publisher, qualifiers: [:p, :publisher]
+      category :subjects, qualifiers: [:s, :subject]
+    end
+
+    indexing_index = Index::Memory.new(:special_indexing) do
+      source   Sources::CSV.new(:title, file: 'data/books.csv')
+      indexing removes_characters: /[^äöüd-zD-Z0-9\s\/\-\"\&\.]/i, # a-c, A-C are removed
+               splits_text_on:     /[\s\/\-\"\&\/]/
+      category :title,
+               qualifiers: [:t, :title, :titre],
+               partial:    Partial::Substring.new(from: 1),
+               similarity: Similarity::DoubleMetaphone.new(2)
+    end
+
+   redis_index = Index::Redis.new(:redis) do
+     source   Sources::CSV.new(:title,:author,:isbn,:year,:publisher,:subjects, file: 'data/books.csv')
+     category :title,
+              qualifiers: [:t, :title, :titre],
+              partial:    Partial::Substring.new(from: 1),
+              similarity: Similarity::DoubleMetaphone.new(2)
+     category :author,
+              qualifiers: [:a, :author, :auteur],
+              partial:    Partial::Substring.new(from: -2)
+     category :year,
+              qualifiers: [:y, :year, :annee],
+              partial:    Partial::None.new
+     category :publisher, qualifiers: [:p, :publisher]
+     category :subjects,  qualifiers: [:s, :subject]
+   end
+
+    sym_keys_index = Index::Memory.new :symbol_keys do
+      source   Sources::CSV.new(:text, file: "data/#{PICKY_ENVIRONMENT}/symbol_keys.csv", key_format: 'strip')
+      category :text, partial: Partial::Substring.new(from: 1)
+    end
+
     options = {
       :weights => {
         [:author]         => 6,
@@ -58,33 +197,23 @@ class BookSearch < Application
         [:author, :year]  => 2
       }
     }
-    
-    full_main = Query::Full.new main_index, isbn_index, options
-    live_main = Query::Live.new main_index, isbn_index, options
-    
-    full_csv  = Query::Full.new csv_test_index, options
-    live_csv  = Query::Live.new csv_test_index, options
-    
-    full_isbn = Query::Full.new isbn_index
-    live_isbn = Query::Live.new isbn_index
-    
-    full_geo  = Query::Full.new geo_index
-    live_geo  = Query::Live.new geo_index
-    
-    route %r{\A/books/full\Z} => full_main,
-          %r{\A/books/live\Z} => live_main,
-          
-          %r{\A/csv/full\Z}   => full_csv,
-          %r{\A/csv/live\Z}   => live_csv,
-          
-          %r{\A/isbn/full\Z}  => full_isbn,
-          
-          %r{\A/geo/full\Z}   => full_geo,
-          %r{\A/geo/live\Z}   => live_geo,
-          
-          %r{\A/all/full\Z}   => Query::Full.new(main_index, csv_test_index, isbn_index, geo_index, options),
-          %r{\A/all/live\Z}   => Query::Live.new(main_index, csv_test_index, isbn_index, geo_index, options)
-    
+
+    route %r{\A/admin\Z}      => LiveParameters.new
+
+    route %r{\A/books\Z}      => Search.new(books_index, isbn_index, options),
+          %r{\A/redis\Z}      => Search.new(redis_index, options),
+          %r{\A/csv\Z}        => Search.new(csv_test_index, options),
+          %r{\A/isbn\Z}       => Search.new(isbn_index),
+          %r{\A/sym\Z}        => Search.new(sym_keys_index),
+          %r{\A/geo\Z}        => Search.new(real_geo_index),
+          %r{\A/simple_geo\Z} => Search.new(mgeo_index),
+          %r{\A/iphone\Z}     => Search.new(iphone_locations),
+          %r{\A/indexing\Z}   => Search.new(indexing_index),
+          %r{\A/all\Z}        => Search.new(books_index, csv_test_index, isbn_index, mgeo_index, options)
+
     root 200
-    
+
 end
+
+previous_handler = Signal.trap('USR1') { }
+Signal.trap('USR1') { Indexes.reload; previous_handler.call }

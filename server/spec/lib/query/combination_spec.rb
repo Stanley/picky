@@ -6,10 +6,10 @@ describe 'Query::Combination' do
 
   before(:each) do
     @bundle      = stub :bundle, :identifier => :bundle_name
-    @token       = stub :token, :text => :some_text, :partial => false, :similar? => true
+    @token       = Internals::Query::Token.processed('some_text~')
     @category    = stub :category, :bundle_for => @bundle, :name => :some_category_name
 
-    @combination = Query::Combination.new @token, @category
+    @combination = Internals::Query::Combination.new @token, @category
   end
   
   describe "to_s" do
@@ -41,9 +41,9 @@ describe 'Query::Combination' do
   describe 'to_result' do
     context 'functional with qualifier' do
       before(:each) do
-        token = Tokenizers::Query.new.tokenize('name:Blä~').first
+        token = Internals::Tokenizers::Query.new.tokenize('name:Blä~').first
 
-        @combination = Query::Combination.new token, @category
+        @combination = Internals::Query::Combination.new token, @category
       end
       it 'should return a correct result' do
         @combination.to_result.should == [:some_category_name, 'Blä~', :blä] # Note: Characters not substituted. That's ok.
@@ -51,15 +51,14 @@ describe 'Query::Combination' do
     end
     it 'should return a correct result' do
       @token.stub! :to_result => [:some_original_text, :some_text]
-      @combination.stub! :identifier => :some_identifier
 
-      @combination.to_result.should == [:some_identifier, :some_original_text, :some_text]
+      @combination.to_result.should == [:some_category_name, :some_original_text, :some_text]
     end
   end
 
   describe 'identifier' do
     it 'should get the category name from the bundle' do
-      @combination.identifier.should == :some_category_name
+      @combination.identifier.should == "bundle_name:similarity:some_text"
     end
   end
 
